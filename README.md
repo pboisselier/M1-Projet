@@ -4,7 +4,7 @@ Projet M1 2021-2022
 
 ## Code guidelines
 
-Please use the .clang-format at the root of this git to ***properly*** format the code, it does the job automatically for you, you have no excuse to not use it.
+Please use the .clang-format at the root of this git to ***properly*** format the code, it does the job automatically for you, you have no excuse for not using it.
 
 ### From VSCode
 
