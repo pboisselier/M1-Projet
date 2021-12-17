@@ -51,7 +51,7 @@ See the `utils` folder for more examples and helpful utilities.
 
 - *Add what has been done*
   
-## Projet Guidelines
+## Project Guidelines
 
 - Only use lowercase name with dash for naming files, all filesystem are not case-insensitive like Windows...  
 - Use `.h` for C headers and `.hpp` for C++ headers
@@ -78,7 +78,7 @@ If you are using code from previous projects **do not forget** to add contributo
 
 ### Clang-Format
 
-Please use the .clang-format at the root of this git to ***properly*** format the code, it does the job automatically for you, you have no excuse for not using it.  
+Please use the `.clang-format` at the root of this git to ***properly*** format the code, it does the job automatically for you, you have no excuse for not using it.  
 Currently the clang-format used is from the Linux Kernel project.
 
 #### From VSCode
