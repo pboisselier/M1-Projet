@@ -1,8 +1,9 @@
-/*
- * Library for the PCF8563 real-time clock from NXP
+/**
+ * @brief Library for the PCF8563 real-time clock from NXP
  *
- * (c) Pierre Boisselier
+ * @copyright (c) Pierre Boisselier
  * 
+ * @details 
  * The PCF8563 is a real-time clock from NXP that communicates over I2C.
  * Refer to https://www.nxp.com/docs/en/data-sheet/PCF8563.pdf for more informations
  * 
@@ -65,14 +66,21 @@
 #define PCF8563_TIMER_CTRL 0x0E
 #define PCF8563_TIMER 0x0F
 
+/* Returned error values */
+#define PCF8563_ERR -1
+#define PCF8563_ERR_ARG -10
+#define PCF8563_ERR_NOPEN -11
+#define PCF8563_ERR_READ -20
+#define PCF8563_ERR_WRITE -21
+
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <time.h>
 #include <errno.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include <assert.h>
+#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -88,8 +96,6 @@ static pthread_mutex_t pcf_mut = PTHREAD_MUTEX_INITIALIZER;
 
 #endif
 
-static int i2c_fd = -1;
-
 static inline int bcd_to_dec(uint8_t value)
 {
 	return ((value & 0xF0) >> 4) * 10 + (value & 0x0F);
@@ -100,78 +106,128 @@ static inline uint8_t dec_to_bcd(int value)
 	return ((uint8_t)(value / 10) << 4) | ((uint8_t)(value % 10));
 }
 
+/**
+ * @brief Print PCF8563 errors, useful when getting a negative value from a function
+ * 
+ * @param error Error number returned by a function 
+ * @param msg Optional message to add
+ */
+void pcf8563_print_err(const int error, const char *msg)
+{
+	switch (error) {
+	case PCF8563_ERR:
+		fprintf(stderr,
+			"A generic error occured with the PCF8563 module (errno: %s): %s\n",
+			strerror(errno), msg);
+		break;
+	case PCF8563_ERR_ARG:
+		fprintf(stderr, "Bad argument provided (errno: %s): %s\n",
+			strerror(errno), msg);
+		break;
+	case PCF8563_ERR_NOPEN:
+		fprintf(stderr,
+			"Connection to PCF8563 not initialized (errno: %s): %s\n",
+			strerror(errno), msg);
+		break;
+	case PCF8563_ERR_READ:
+		fprintf(stderr, "Unable to read to PCF8563 (errno: %s): %s\n",
+			strerror(errno), msg);
+		break;
+	case PCF8563_ERR_WRITE:
+		fprintf(stderr, "Unable to write to PCF8563 (errno: %s): %s\n",
+			strerror(errno), msg);
+		break;
+	}
+}
+
+/**
+ * @brief Open connection to the PFC8563 RTC and return a file descriptor 
+ * 
+ * @param i2c_device I2C device path (/dev/i2c-1 for instance)
+ * @param bus_addr I2C bus address (0x703 for Rapsberry Pi 4 for instance)
+ * @return a file descriptor to the PCF8563 RTC (or error if negative)
+ */
 int pcf8563_init_c_ui16(const char *i2c_device, uint16_t bus_addr)
 {
-	int err = 0;
-
 	if (!i2c_device)
-		return EINVAL; // TODO: Make it better...
+		return PCF8563_ERR_ARG;
 
 	int fd = open(i2c_device, O_RDWR);
 	if (fd < 0)
-		return errno;
+		return PCF8563_ERR_NOPEN;
 
 	if (ioctl(fd, bus_addr, PCF8563_I2C_ADDR) < 0) {
-		err = (int)errno;
 		(void)close(fd);
-		return err;
+		return PCF8563_ERR_NOPEN;
 	}
 
-	i2c_fd = fd;
-
-	return err;
+	return fd;
 }
 
+/**
+ * @brief Open a connection to the PCF8563 RTC with default Raspberry Pi I2C bus address
+ * 
+ * @param i2c_device I2C device path (/dev/i2c-1 for instance)
+ * @return a file descriptor to the PCF8563 RTC (or error if negative)
+ */
 int pcf8563_init_c(const char *i2c_device)
 {
 	return pcf8563_init_c_ui16(i2c_device, RPI_I2C_BUS);
 }
 
+/**
+ * @brief Open a connection to the PCF8563 RTC with default address
+ * 
+ * @return a file descriptor to the PCF8563 RTC (or error if negative)
+ */
 int pcf8563_init(void)
 {
 	return pcf8563_init_c_ui16("/dev/i2c-1", RPI_I2C_BUS);
 }
 
-int pcf8563_close(void)
+/**
+ * @brief Close I2C connection to the PCF8563 RTC
+ * 
+ * @param i2c_fd Connection to the PCF8563 as a file descriptor
+ * @return 0 on success, negative value on error
+ */
+int pcf8563_close(const int i2c_fd)
 {
-	if (i2c_fd == -1)
-		return 0; // Nothing to do
+	if (i2c_fd < 0)
+		return PCF8563_ERR_ARG;
 
 	if (close(i2c_fd) < 0)
-		return errno;
+		return PCF8563_ERR;
 
 	return 0;
 }
 
-int pcf8563_reset(void)
+/**
+ * @brief Read current time from the RTC clock
+ * 
+ * @param i2c_fd Opened connection to the RTC clock 
+ * @param time Pointer to a time_t that will contain the time
+ * @return 0 on success, negative value on error
+ */
+int pcf8563_read_time(const int i2c_fd, time_t *time)
 {
-	if (i2c_fd == -1)
-		return -1001; // TODO
-
-	// TODO
-
-	return 0;
-}
-
-int pcf8563_read_time(time_t *time)
-{
-	if (i2c_fd == -1)
-		return -1001;
+	if (i2c_fd < 0)
+		return PCF8563_ERR_NOPEN;
 	if (!time)
-		return -EINVAL; // TODO: Make it better...
+		return PCF8563_ERR_ARG;
 
 	uint8_t buf[7];
+	uint8_t start_read = PCF8563_REG_VLSEC;
 
 	/* Following recommended method to read time from the datasheet (c 8.5)
          * - Send 0x02 (VL_SEC register)
          * - Read all time registers
          * - Convert BCD values to decimal
          */
-	uint8_t start_read = PCF8563_REG_VLSEC;
 	if (write(i2c_fd, &start_read, 1) < 0)
-		return -errno;
+		return PCF8563_ERR_WRITE;
 	if (read(i2c_fd, buf, sizeof(buf)) < 0)
-		return -errno;
+		return PCF8563_ERR_READ;
 
 	struct tm tm_pcf = { 0 };
 
@@ -189,17 +245,24 @@ int pcf8563_read_time(time_t *time)
 	return 0;
 }
 
-int pcf8563_set_time(const time_t *time)
+/**
+ * @brief Set a time on the RTC clock
+ * 
+ * @param i2c_fd Opened connection to the RTC clock 
+ * @param time Pointer to a time_t that will contain the time
+ * @return 0 on success, negative value on error
+ */
+int pcf8563_set_time(const int i2c_fd, const time_t *time)
 {
-	if (i2c_fd == -1)
-		return -1001; // TODO
+	if (i2c_fd < 0)
+		return PCF8563_ERR_NOPEN;
 	if (!time)
-		return -EINVAL; // TODO
+		return PCF8563_ERR_ARG;
 
 	struct tm *tm_pcf = localtime(time);
 	uint8_t buf[8];
-	buf[0] =
-		PCF8563_REG_VLSEC; // We are going to write from the VLSec reg and onwards
+
+	buf[0] = PCF8563_REG_VLSEC; // Writing starts at VLSEC register
 	buf[1] = dec_to_bcd(tm_pcf->tm_sec) & 0x7F;
 	buf[2] = dec_to_bcd(tm_pcf->tm_min) & 0x7F;
 	buf[3] = dec_to_bcd(tm_pcf->tm_hour) & 0x3F;
@@ -210,50 +273,54 @@ int pcf8563_set_time(const time_t *time)
 	buf[7] = dec_to_bcd((tm_pcf->tm_year - 100) % 100);
 
 	if (write(i2c_fd, buf, sizeof(buf)) < 0)
-		return -errno;
+		return PCF8563_ERR_WRITE;
 
 	return 0;
 }
 
-bool pcf8563_is_voltage_low(int *errptr)
+/**
+ * @brief Check whether the RTC battery is low or not
+ * 
+ * @param i2c_fd Opened connection to the RTC clock 
+ * @return 0 if voltage is NOT low, 1 if low, negative value on error 
+ */
+int pcf8563_is_voltage_low(const int i2c_fd)
 {
-	// TODO
-	return false;
+	if (i2c_fd < 0)
+		return PCF8563_ERR_NOPEN;
+
+	uint8_t vl = PCF8563_REG_VLSEC;
+	if (write(i2c_fd, &vl, sizeof(vl)) < 0)
+		return PCF8563_ERR_WRITE;
+	if (read(i2c_fd, &vl, sizeof(vl)) < 0)
+		return PCF8563_ERR_READ;
+
+	/* Return directly the value of the VL bit */
+	return (vl & (1 << 7));
 }
 
 /* This function tests the STOP bit from the control status 1 register */
-bool pcf8563_is_running(int *errptr)
+/**
+ * @brief Check whether the RTC is running or not
+ * 
+ * @param i2c_fd Opened connection to the RTC clock 
+ * @return 0 if not running, 1 if running, negative value on error
+ */
+int pcf8563_is_running(const int i2c_fd)
 {
-	int err = -1001;
-	uint8_t buf = PCF8563_REG_CSTATUS_1;
+	if (i2c_fd < 0)
+		return PCF8563_ERR_NOPEN;
 
-	if (i2c_fd == -1)
-		goto err;
+	/* Read the Control Status 1 Register */
+	uint8_t cstatus = PCF8563_REG_CSTATUS_1;
 
-	if (write(i2c_fd, &buf, 1) < 0)
-		goto set_err;
-	if (read(i2c_fd, &buf, 1) < 0)
-		goto set_err;
+	if (write(i2c_fd, &cstatus, sizeof(cstatus)) < 0)
+		return PCF8563_ERR_WRITE;
+	if (read(i2c_fd, &cstatus, sizeof(cstatus)) < 0)
+		return PCF8563_ERR_READ;
 
-	return ((buf & (1 << 5)) == 0);
-
-set_err:
-	err = errno;
-err:
-	if (errptr)
-		*errptr = err; // TODO: Make it better.
-
-	return false;
+	return ((cstatus & (1 << 5)) == 0);
 }
-
-// TODO: Use BCM lib for i2c init and functions?
-// TODO: import BCM gpio library for interrupts?
-// TODO: Use Fast interrupts requests?
-// TODO: Threaded IRQ for i2c writes and reads?
-// TODO: Call backs/interrupts after a set time?
-// TODO: Pthread
-// https://linux-kernel-labs.github.io/refs/heads/master/lectures/interrupts.html
-// https://stackoverflow.com/questions/18921933/how-an-i2c-read-as-well-as-write-operation-in-handler-function-of-request-thre
 
 #ifdef __cplusplus
 }
