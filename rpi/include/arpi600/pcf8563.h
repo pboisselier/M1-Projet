@@ -19,15 +19,15 @@
  *      Example: cc -DPCF8553_I2C_ADDR=0x51 -std=c11 test.c -o test
  * 
  * - Get current time:
- * 	- Use "pcf8563_init" to initialize the RTC
+ * 	- Use "pcf8563_init" to initialize the RTC, and retrieve the file descriptor
  * 	- Create a time_t variable to store current time
- * 	- Call "pcf8563_read_time(&variable)" to read current time into the variable
+ * 	- Call "pcf8563_read_time(fd, &variable)" to read current time into the variable
  *      - You can check the return of the function for errors
- * 	- Use "pcf8563_close()" to close the connection to the RTC
+ * 	- Use "pcf8563_close(fd)" to close the connection to the RTC
  * 
  * - Set current time
  * 	- Use "pcf8563_init" to initialize the RTC
- * 	- Call "pcf8563_set_time(&tm)" to update the RTC time
+ * 	- Call "pcf8563_set_time(fd, &tm)" to update the RTC time
  * 
  * Error handling:
  * 	All functions return a NEGATIVE number when an error occured, it is worth checking errno
