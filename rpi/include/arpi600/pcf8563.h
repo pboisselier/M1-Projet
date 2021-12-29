@@ -2,6 +2,7 @@
  * @brief Library for the PCF8563 real-time clock from NXP
  *
  * @file pcf8563.h
+ * @ingroup ArPi600
  * @copyright (c) Pierre Boisselier
  * 
  * @details 
@@ -10,7 +11,7 @@
  * 
  * ARPI600 Implementation specific:
  *      - Set the RTC jumper 
- * 
+ *  
  * Usage:
  *  - Finding the I2C address
  *           Use: pi@rpi:~ $ i2cdetect -y 1 
@@ -38,14 +39,24 @@
 #ifndef PCF8563_H
 #define PCF8563_H
 
-/* Do not override user-defined i2c address */
+/**
+ * @name I2C default settings
+ * @{
+ */
 #ifndef PCF8563_I2C_ADDR
+/** @brief Default I2C address for the PCF8563 */
 #define PCF8563_I2C_ADDR 0x51
 #endif
 #ifndef RPI_I2C_BUS
+/** @brief Default I2C bus of the Raspberry Pi */
 #define RPI_I2C_BUS 0x703
 #endif
 
+/**
+ * @}
+ * @name PC8563 registers addresses
+ * @{ 
+ */
 /* Control registers */
 #define PCF8563_REG_CSTATUS_1 0x00
 #define PCF8563_REG_CSTATUS_2 0x01
@@ -67,12 +78,25 @@
 #define PCF8563_TIMER_CTRL 0x0E
 #define PCF8563_TIMER 0x0F
 
-/* Returned error values */
+/**
+ * @}
+ * @name Error returned by functions
+ * @{
+ */
+/** @brief Generic error */
 #define PCF8563_ERR -1
+/** @brief Bad argument provided to function */
 #define PCF8563_ERR_ARG -10
+/** @brief I2C device not opened */
 #define PCF8563_ERR_NOPEN -11
+/** @brief Cannot read from I2C device */
 #define PCF8563_ERR_READ -20
+/** @brief Connot write to I2C device */
 #define PCF8563_ERR_WRITE -21
+
+/**
+ * @}
+ */
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -85,16 +109,6 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-/* Enable multithreading functions if supported */
-#ifdef _POSIX_THREADS
-
-#include <pthread.h>
-
-/* Local mutex for access to the pcf8563 */
-static pthread_mutex_t pcf_mut = PTHREAD_MUTEX_INITIALIZER;
-
 #endif
 
 static inline int bcd_to_dec(uint8_t value)
@@ -300,7 +314,6 @@ int pcf8563_is_voltage_low(const int i2c_fd)
 	return (vl & (1 << 7));
 }
 
-/* This function tests the STOP bit from the control status 1 register */
 /**
  * @brief Check whether the RTC is running or not
  * 
@@ -320,6 +333,7 @@ int pcf8563_is_running(const int i2c_fd)
 	if (read(i2c_fd, &cstatus, sizeof(cstatus)) < 0)
 		return PCF8563_ERR_READ;
 
+	/* Test the STOP bit */
 	return ((cstatus & (1 << 5)) == 0);
 }
 
