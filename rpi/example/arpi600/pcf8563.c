@@ -1,12 +1,14 @@
-/*
- * Simple example utilizing the PCF8563 module on the ARPI600
+/**
+ * @brief Simple example utilizing the PCF8563 module on the ARPI600
  *
- * (c) Pierre Boisselier
+ * @copyright (c) Pierre Boisselier
  * 
- * Compile:
- *      cc -I../../include pcf8563.c -std=c11 -Wall -o pcf8563 
+ * @example pcf8563.c 
+ * Compile with:
+ * ```sh
+ * cc -I../../include pcf8563.c -std=c11 -Wall -o pcf8563 
+ * ```
  */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <arpi600/pcf8563.h>

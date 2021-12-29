@@ -6,34 +6,47 @@
  * @copyright (c) Pierre Boisselier
  * 
  * @details 
- * The PCF8563 is a real-time clock from NXP that communicates over I2C.
- * Refer to https://www.nxp.com/docs/en/data-sheet/PCF8563.pdf for more informations
+ * The PCF8563 is a real-time clock from NXP that communicates over I2C.  
+ * Refer to https://www.nxp.com/docs/en/data-sheet/PCF8563.pdf for more informations.  
  * 
- * ARPI600 Implementation specific:
- *      - Set the RTC jumper 
- *  
- * Usage:
- *  - Finding the I2C address
- *           Use: pi@rpi:~ $ i2cdetect -y 1 
- *      This will print all I2C devices connected on the default rasbperry pi bus, 
- *      you can change the I2C address by changing de PCF8563_I2C_ADDR define.
- *      This is easily done using the -D option in most compilers (gcc/clang).
- *      Example: cc -DPCF8553_I2C_ADDR=0x51 -std=c11 test.c -o test
+ * @note As for now, only the time functions are implemented.
+ * The alarm and timer are not implemented.
+ *   
+ * ## Usage
  * 
- * - Get current time:
- * 	- Use "pcf8563_init" to initialize the RTC, and retrieve the file descriptor
- * 	- Create a time_t variable to store current time
- * 	- Call "pcf8563_read_time(fd, &variable)" to read current time into the variable
- *      - You can check the return of the function for errors
- * 	- Use "pcf8563_close(fd)" to close the connection to the RTC
+ * ### Get time 
  * 
- * - Set current time
- * 	- Use "pcf8563_init" to initialize the RTC
- * 	- Call "pcf8563_set_time(fd, &tm)" to update the RTC time
+ * ```c
+ * // Initialize access
+ * int pcf = pcf8563_init();
  * 
- * Error handling:
- * 	All functions return a NEGATIVE number when an error occured, it is worth checking errno
- *      using perror for instance as most errors might come from I/O operations. 
+ * // Read time
+ * time_t tm;
+ * pcf8563_read_time(pcf, &tm); 
+ * 
+ * // Close access
+ * pcf8563_close(pcf); 
+ * ```
+ * 
+ * ### Set time
+ * 
+ * ```c
+ * // Initialize access
+ * int pcf = pcf8563_init();
+ * 
+ * // Get system time
+ * time_t tm;
+ * time (&tm); 
+ * 
+ * // Set RTC time
+ * pcf8563_set_time(pcf, &tm); 
+ * 
+ * // Close access
+ * pcf8563_close(pcf); 
+ * ```
+ * 
+ * ## ARPI600 Implementation specific:
+ *      - Set the RTC jumper on the board
  */
 
 #ifndef PCF8563_H
