@@ -25,7 +25,7 @@ int main(void) {
 cc main.c -I./rpi/include -std=c11 -o test
 ``` 
 
-See the `utils` folder for more examples and helpful utilities.
+See the *utils* folder for more examples and helpful utilities.
 
 ## Cards
 
@@ -63,16 +63,22 @@ See the `utils` folder for more examples and helpful utilities.
 Put your name at the top of the file, if you are adding something to someone else file add your name under it like so: 
 
 ```c
-/*
- * A phrase to tell what the file does
+/*\*
+ * @brief A phrase to tell what the file does
  * 
- * (c) John Smith 
- * (c) John Doe   
+ * @file file.h
+ * @copyright (c) John Smith 
+ * @copyright (c) John Doe   
  *  
+ * @details
  * More details about what the code does
  * this is usually more than one line
+ * 
+ * @warning A warning if there are important things the user needs to know
  */
 ``` 
+
+*Note: please remove the `\` in-between the `/*\*`, this is here to prevent Doxygen from interpreting this comment block.*
 
 If you are using code from previous projects **do not forget** to add contributors' names!
 
@@ -94,3 +100,18 @@ clang-format -i <file>
 clang-format -i *
 ```
 
+## Documentation
+
+You can quickly generate the doxygen documentation using the Doxyfile configuration present at the root of the project.
+The generated documentation will be found in the [doc](doc/) folder, open the [index.html](doc/html/index.html) file to navigate it.  
+You need to have `doxygen` and `dot` installed, on Debian systems you can use the code below:
+
+```sh
+# Install required packages
+sudo apt install doxygen graphviz
+
+# Generate documentation
+doxygen Doxyfile
+```
+
+You can also use the `doxywizard` utility to easily modify the configuration, this utility is found in the package `doxygen-gui` in Debian based distros.
