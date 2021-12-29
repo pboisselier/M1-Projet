@@ -37,7 +37,8 @@ See the *utils* folder for more examples and helpful utilities.
 
 #### ARPI600 by xBee
 
-- PCF8563 Real-Time clock ([pcf8563.h](rpi/include/arpi600/pcf8563.h))
+- PCF8563 Real-Time clock (pcf8563.h)
+- TLC1543 10-Bit ADC (tlc1543.h)
 
 ### Arduino Due
 
