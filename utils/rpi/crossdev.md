@@ -15,9 +15,10 @@ SYSPATH=/tools/pi4
 mkdir $SYSPATH/sysroot
 mkdir $SYSPATH/sysroot/usr
 
-rsync -az pi@raspberrypi:/lib $SYSPATH/sysroot
-rsync -az pi@raspberrypi:/usr/include $SYSPATH/sysroot/usr
-rsync -az pi@raspberrypi:/usr/lib $SYSPATH/sysroot/usr
+# The option -L transforms symlink into actual files, this prevent weird bug with symlinks
+rsync -azL pi@raspberrypi:/lib $SYSPATH/sysroot
+rsync -azL pi@raspberrypi:/usr/include $SYSPATH/sysroot/usr
+rsync -azL pi@raspberrypi:/usr/lib $SYSPATH/sysroot/usr
 ```
 
 ## Compilation
