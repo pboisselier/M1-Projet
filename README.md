@@ -37,7 +37,7 @@ See the *utils* folder for more examples and helpful utilities.
 
 #### ARPI600 by xBee
 
-- *Add what has been done*
+- PCF8563 Real-Time clock ([pcf8563.h](rpi/include/arpi600/pcf8563.h))
 
 ### Arduino Due
 
@@ -57,10 +57,13 @@ See the *utils* folder for more examples and helpful utilities.
 - Use `.h` for C headers and `.hpp` for C++ headers
 - There should not be any `.c` (or `.cpp`) file in any library
 - Keep all your `.c` files for testing in the `example` folder, this will always be useful for people
+- When compiling, prefer to use a name with `.out` at the end, this way it will automatically be ignored by git (e.g. `mytest.out`)
 
-### Attribution
+### Comments 
 
-Put your name at the top of the file, if you are adding something to someone else file add your name under it like so: 
+Use the Doxygen javadoc-style comments, this way a documentation can be automatically generated from source and most IDEs will use it with autocompletion.
+
+At the top of the file: 
 
 ```c
 /*\*
@@ -77,6 +80,18 @@ Put your name at the top of the file, if you are adding something to someone els
  * @warning A warning if there are important things the user needs to know
  */
 ``` 
+
+Before a function:
+```c
+/*\*
+ * @brief What the function does 
+ * 
+ * @param arg1 what is this argument, no need to say what type it is as it's automatically done
+ * @param arg2 what is this other argument
+ * @return what does the function return, e.g. "0 on success, -1 on error"
+ */
+int my_function(int arg1, char** arg2);
+```
 
 *Note: please remove the `\` in-between the `/*\*`, this is here to prevent Doxygen from interpreting this comment block.*
 
