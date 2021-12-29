@@ -19,7 +19,7 @@ int main(int argc, char **argv)
 
 	int pcf_i2c = pcf8563_init();
 	if (pcf_i2c < 0)
-		pcf8563_print_err(pcf_i2c, "");
+		pcf8563_print_err(pcf_i2c, "init pcf8563");
 
 	if (pcf8563_read_time(pcf_i2c, &tm) < 0)
 		pcf8563_print_err(-1, "reading time");
@@ -27,7 +27,7 @@ int main(int argc, char **argv)
 	printf("RTC Time: %s\n", asctime(gmtime(&tm)));
 
 	if (pcf8563_close(pcf_i2c) < 0)
-		pcf8563_print_err(-1, "reading time");
+		pcf8563_print_err(-1, "close pcf8563");
 
 	return EXIT_SUCCESS;
 }

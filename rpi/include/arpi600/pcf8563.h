@@ -1,6 +1,7 @@
 /**
  * @brief Library for the PCF8563 real-time clock from NXP
  *
+ * @file pcf8563.h
  * @copyright (c) Pierre Boisselier
  * 
  * @details 
