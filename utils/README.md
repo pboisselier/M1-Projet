@@ -1,6 +1,7 @@
 # Utils
 
 This folder contains useful stuff to help speed up development using this library.
+It also contains some documentations to speed up development time.
 
 ## xPlain Mini
 

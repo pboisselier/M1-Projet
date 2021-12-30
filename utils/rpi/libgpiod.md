@@ -33,13 +33,13 @@ sudo apt install libgpiod2
 The first thing to do before we can have fun with the GPIO pins si to select which GPIO chip we are going to use. 
 The package `gpiod` provides a useful tool called `gpiodetect` which gives a detailed list of all GPIO chips present on the device.
 
-![Image of gpiodetect running on the Raspberry Pi 4](gpiodetect.png)
+![Image of gpiodetect running on the Raspberry Pi 4](assets/gpiodetect.png)
 
 In this case the Raspberry Pi 4 has 2 GPIO chips, one from the BCM2711 SoC (`gpiochip0`) where all pins from the header are connected and the second chip where system buttons and leds are connected (`gpiochip1`).
 
 There is also the tool `gpioinfo` which gives a detailed view of all GPIO lines (or pins if you prefer) on each chip.
 
-![Image of gpioinfo running on the Raspberry Pi 4](gpioinfo.png)
+![Image of gpioinfo running on the Raspberry Pi 4](assets/gpioinfo.png)
 
 In this example we are going to make a very simple program that generates a square waveform, basically we are going to set the same pin HIGH then LOW in an infinite loop.
 
@@ -48,12 +48,16 @@ In this example we are going to make a very simple program that generates a squa
 | The code below is not complete and needs to be completed! |
 
 
+First we need the required headers.
+
 ```c
 /* We need to include our library */
 #include <gpiod.h>
 /* This header will help troubleshoot problems and provides the function perror which is very useful */
 #include <errno.h>
 ```
+
+We can now open the GPIO chip and reserve the GPIO line we need.
 
 ```c
 /* Open gpiochip0 */
@@ -107,3 +111,6 @@ For using a line as an input it is the same thing, open the chip, retrieve a lin
 You can use `gpiod_line_get_value` this time to read the value of the pin (HIGH or LOW).
 
 ## Advanced Use: Events
+
+## Examples
+
