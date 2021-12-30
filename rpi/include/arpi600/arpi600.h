@@ -4,6 +4,7 @@
  * @file arpi600.h
  * @defgroup ArPi600 XBee ArPi600 expansion card
  * @copyright (c) Pierre Boisselier
+ * @date 2021-12-17
  * 
  * @details
  * This header includes each library for each device on the expansion card.
@@ -20,8 +21,8 @@
 extern "C" {
 #endif
 
-#include <arpi600/pcf8563.h>
-#include <arpi600/tlc1543.h>
+#include "pcf8563.h"
+#include "tlc1543.h"
 
 #ifdef __cplusplus
 }

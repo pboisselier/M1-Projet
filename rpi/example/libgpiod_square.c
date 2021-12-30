@@ -1,5 +1,7 @@
 /**
  * @brief Simple example using the libgpiod library, it genrated a square waveform on the GPIO pin 12
+ * @copyright (c) Pierre Boisselier
+ * @date 2021-12-30
  * @example libgpiod_square.c
  * This continuously generates a square waveform until SIGINT is received (Ctrl+C).
  */

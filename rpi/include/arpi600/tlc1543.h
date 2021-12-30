@@ -4,6 +4,7 @@
  * @file tlc1543.h
  * @ingroup ArPi600
  * @copyright (c) Pierre Boisselier
+ * @date 2021-12-17
  * 
  * @details
  * This library allows one to use the TLC1543 10-bit ADC from Texas Instruments in their project.  
@@ -142,7 +143,7 @@ extern "C" {
  * @brief Access to the TLC1543
  */
 struct tlc1543 {
-	struct gpiod_chip *chip; ///< @brief GPIO chip used
+	struct gpiod_chip *chip; ///< GPIO chip used
 	struct gpiod_line *ioclk; ///< GPIO line for IOCLK
 	struct gpiod_line *addr; ///< GPIO line for ADDR
 	struct gpiod_line *data; ///< GPIO line for DATA_OUT

@@ -4,6 +4,7 @@
  * @file pcf8563.h
  * @ingroup ArPi600
  * @copyright (c) Pierre Boisselier
+ * @date 2021-12-17
  * 
  * @details 
  * The PCF8563 is a real-time clock from NXP that communicates over I2C.  
