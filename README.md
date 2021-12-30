@@ -40,6 +40,10 @@ See the *utils* folder for more examples and helpful utilities.
 - PCF8563 Real-Time clock (pcf8563.h)
 - TLC1543 10-Bit ADC (tlc1543.h)
 
+#### GPIO Interrupt
+
+Small wrapper for the libgpiod library using pthread to provide GPIO interrupts (gpiod-isr.h)
+
 ### Arduino Due
 
 *Add what has been done*

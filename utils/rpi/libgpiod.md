@@ -110,7 +110,33 @@ Using a logic analyzer we can observe the resulting square waveform.
 For using a line as an input it is the same thing, open the chip, retrieve a line, reserve the line and set the direction.
 You can use `gpiod_line_get_value` this time to read the value of the pin (HIGH or LOW).
 
-## Advanced Use: Events
+As a side note, it is also possible skip the `gpiod_chip_get_line` function altogether by using the function `gpiod_line_get(const char *device, unsgined int offset)`.
+
+| Warning                                                                                  |
+| :--------------------------------------------------------------------------------------- |
+| However, you **still** need to close the corresponding GPIO chip with `gpiod_chip_close` |
+
+```sh
+const int gpio_pin = 12;
+struct gpiod_line *line = gpiod_line_get("/dev/gpiochip0", gpio_pin);
+```
+
+## Events
+
+The library supports the three possible events on a GPIO line: **rising edge**, **falling edge** and **both edges**.
+
+A small tool is also provided to monitor events on different lines: `gpiomon`.
+
+![gpiomon on the RaspberryPi](assets/gpiomon.png)
+
+
+## Interrupts
+
+As of now the library does not seem to provide a way to have GPIO interrupts.
+The simplest way to do it is to utilize the multitasking capabilities of our system and have a thread constantly waiting for events.
+
+A small wrapper is availabe in the folder `rpi/include` and is called `gpiod-isr.h`, it is based on pthread and thus requires to compile with the `-pthread` flag.
 
 ## Examples
+
 
