@@ -1,8 +1,28 @@
+/* 
+ * Copyright © 2021 Pierre Boisselier
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and 
+ * associated documentation files (the “Software”), to deal in the Software without restriction, including 
+ * without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell 
+ * copies of the Software, and to permit persons to whom the Software is furnished to do so, 
+ * subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all copies 
+ * or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE 
+ * AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, 
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * 
+*/
+
 /**
  * @brief Simple wrapper for the libgpiod library that provides a way to have event interrupts
  * 
  * @file gpiod-isr.h
- * @copyright (c) Pierre Boisselier
+ * @copyright (c) Pierre Boisselier <pb@pboisselier.fr>
  * @date 2021-12-30 
  *
  * @details 
@@ -10,13 +30,10 @@
  * It is based on pthread and will start a thread that will keep monitoring a line (or set of lines)
  * and call a handling function that the user provided.  
  * 
- * ## 
- * 
  * @warning This wrapper uses pthread, do not forget to add `-pthread` when compiling!
  * @warning If your handler function is too slow some events can be discarded if they are happening during your function! 
  * 
- * @todo Check whether the gpiod_release function will cause problem for the user when he tries to re-request with the same pointer that he got from gpiod_chip_get_line.
- *
+ * 
  */
 
 #ifndef GPIO_ISR_H
@@ -129,6 +146,61 @@ static void *_gpiod_event_watcher_bulk(void *_isr)
 }
 
 /**
+ * @brief Request the correct event for the line.
+ * @param line GPIO line object.
+ * @param consumer Name of the consumer.
+ * @param event_type Event request type.
+ * @return 0 on success, -1 on failure 
+ * 
+ * This is done this way to prevent someone from requesting something that is not an event, 
+ * for instance a GPIOD_LINE_REQUEST_DIRECTION_INPUT.
+ */
+static int _gpiod_request_event(struct gpiod_line *line, const char *consumer,
+				int event_type)
+{
+	switch (event_type) {
+	case GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE:
+		return gpiod_line_request_falling_edge_events(line, consumer);
+	case GPIOD_LINE_REQUEST_EVENT_RISING_EDGE:
+		return gpiod_line_request_rising_edge_events(line, consumer);
+	case GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES:
+		return gpiod_line_request_both_edges_events(line, consumer);
+	default:
+		errno = EINVAL;
+		return -1;
+	}
+}
+
+/**
+ * @brief Request the correct event for a set of lines.
+ * @param line GPIO bulk object.
+ * @param consumer Name of the consumer.
+ * @param event_type Event request type.
+ * @return 0 on success, -1 on failure 
+ * 
+ * This is done this way to prevent someone from requesting something that is not an event, 
+ * for instance a GPIOD_LINE_REQUEST_DIRECTION_INPUT.
+ */
+static int _gpiod_request_bulk_event(struct gpiod_line_bulk *bulk,
+				     const char *consumer, int event_type)
+{
+	switch (event_type) {
+	case GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE:
+		return gpiod_line_request_bulk_falling_edge_events(bulk,
+								   consumer);
+	case GPIOD_LINE_REQUEST_EVENT_RISING_EDGE:
+		return gpiod_line_request_bulk_rising_edge_events(bulk,
+								  consumer);
+	case GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES:
+		return gpiod_line_request_bulk_both_edges_events(bulk,
+								 consumer);
+	default:
+		errno = EINVAL;
+		return -1;
+	}
+}
+
+/**
  * @brief Release a previously registered ISR event.
  * @param isr GPIO ISR object.
  * @return 0 on success, -1 on failure. 
@@ -138,9 +210,12 @@ int gpiod_isr_release(struct gpiod_isr *isr)
 	if (!isr)
 		return -1;
 
-	gpiod_line_release(isr->line);
+	/* Wait for thread to be completely finished so it frees all resources */
 	if (pthread_cancel(isr->thread) != 0)
 		return -1;
+	pthread_join(isr->thread, NULL);
+
+	gpiod_line_release(isr->line);
 
 	free(isr);
 	return 0;
@@ -156,10 +231,12 @@ int gpiod_isr_release_bulk(struct gpiod_isr_bulk *isr)
 	if (!isr)
 		return -1;
 
-	gpiod_line_release_bulk(isr->lines);
+	/* Wait for thread to be completely finished so it frees all resources */
 	if (pthread_cancel(isr->thread) != 0)
 		return -1;
+	pthread_join(isr->thread, NULL);
 
+	gpiod_line_release_bulk(isr->lines);
 	free(isr);
 	return 0;
 }
@@ -171,9 +248,14 @@ int gpiod_isr_release_bulk(struct gpiod_isr_bulk *isr)
  * @param event_type Event type (type of request).
  * @param handler Interrupt handling function.
  * @return Pointer to the GPIO ISR handler or NULL on failure.
+ * 
+ * The parameter event_type can be:
+ * - GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE
+ * - GPIOD_LINE_REQUEST_EVENT_RISING_EDGE
+ * - GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES
  */
 struct gpiod_isr *gpiod_isr_request_events(
-	struct gpiod_line *line, const char *consumer, int event_type,
+	struct gpiod_line *line, const char *consumer, const int event_type,
 	void (*handler)(struct gpiod_line *, struct gpiod_line_event *))
 {
 	if (!line || !handler) {
@@ -181,26 +263,7 @@ struct gpiod_isr *gpiod_isr_request_events(
 		return NULL;
 	}
 
-	int request_err = 0;
-	switch (event_type) {
-	case GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE:
-		request_err =
-			gpiod_line_request_falling_edge_events(line, consumer);
-		break;
-	case GPIOD_LINE_REQUEST_EVENT_RISING_EDGE:
-		request_err =
-			gpiod_line_request_rising_edge_events(line, consumer);
-		break;
-	case GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES:
-		request_err =
-			gpiod_line_request_both_edges_events(line, consumer);
-		break;
-	default:
-		errno = EINVAL;
-		return NULL;
-	}
-
-	if (request_err)
+	if (_gpiod_request_event(line, consumer, event_type) < 0)
 		return NULL;
 
 	struct gpiod_isr *isr = malloc(sizeof(*isr));
@@ -230,9 +293,15 @@ struct gpiod_isr *gpiod_isr_request_events(
  * @param event_type Event type (type of request).
  * @param handler Interrupt handling function.
  * @return Pointer to the GPIO ISR handler or NULL on failure.
+ * 
+ * The parameter event_type can be:
+ * - GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE
+ * - GPIOD_LINE_REQUEST_EVENT_RISING_EDGE
+ * - GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES
  */
 struct gpiod_isr_bulk *gpiod_isr_request_bulk_events(
-	struct gpiod_line_bulk *bulk, const char *consumer, int event_type,
+	struct gpiod_line_bulk *bulk, const char *consumer,
+	const int event_type,
 	void (*handler)(struct gpiod_line *, struct gpiod_line_event *))
 {
 	if (!bulk || !handler) {
@@ -240,26 +309,7 @@ struct gpiod_isr_bulk *gpiod_isr_request_bulk_events(
 		return NULL;
 	}
 
-	int request_err = 0;
-	switch (event_type) {
-	case GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE:
-		request_err = gpiod_line_request_bulk_falling_edge_events(
-			bulk, consumer);
-		break;
-	case GPIOD_LINE_REQUEST_EVENT_RISING_EDGE:
-		request_err = gpiod_line_request_bulk_rising_edge_events(
-			bulk, consumer);
-		break;
-	case GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES:
-		request_err = gpiod_line_request_bulk_both_edges_events(
-			bulk, consumer);
-		break;
-	default:
-		errno = EINVAL;
-		return NULL;
-	}
-
-	if (request_err)
+	if (_gpiod_request_bulk_event(bulk, consumer, event_type) < 0)
 		return NULL;
 
 	struct gpiod_isr_bulk *isr = malloc(sizeof(*isr));
@@ -291,10 +341,10 @@ struct gpiod_isr_bulk *gpiod_isr_request_bulk_events(
  */
 struct gpiod_isr *gpiod_isr_request_rising_edge_events(
 	struct gpiod_line *line, const char *consumer,
-	void (*isr)(struct gpiod_line *, struct gpiod_line_event *))
+	void (*handler)(struct gpiod_line *, struct gpiod_line_event *))
 {
 	return gpiod_isr_request_events(
-		line, consumer, GPIOD_LINE_REQUEST_EVENT_RISING_EDGE, isr);
+		line, consumer, GPIOD_LINE_REQUEST_EVENT_RISING_EDGE, handler);
 }
 
 /**
@@ -306,10 +356,10 @@ struct gpiod_isr *gpiod_isr_request_rising_edge_events(
  */
 struct gpiod_isr_bulk *gpiod_isr_request_bulk_rising_edge_events(
 	struct gpiod_line_bulk *bulk, const char *consumer,
-	void (*isr)(struct gpiod_line *, struct gpiod_line_event *))
+	void (*handler)(struct gpiod_line *, struct gpiod_line_event *))
 {
 	return gpiod_isr_request_bulk_events(
-		bulk, consumer, GPIOD_LINE_REQUEST_EVENT_RISING_EDGE, isr);
+		bulk, consumer, GPIOD_LINE_REQUEST_EVENT_RISING_EDGE, handler);
 }
 
 /**
@@ -321,10 +371,10 @@ struct gpiod_isr_bulk *gpiod_isr_request_bulk_rising_edge_events(
  */
 struct gpiod_isr *gpiod_isr_request_falling_edge_events(
 	struct gpiod_line *line, const char *consumer,
-	void (*isr)(struct gpiod_line *, struct gpiod_line_event *))
+	void (*handler)(struct gpiod_line *, struct gpiod_line_event *))
 {
 	return gpiod_isr_request_events(
-		line, consumer, GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE, isr);
+		line, consumer, GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE, handler);
 }
 
 /**
@@ -336,10 +386,10 @@ struct gpiod_isr *gpiod_isr_request_falling_edge_events(
  */
 struct gpiod_isr_bulk *gpiod_isr_request_bulk_falling_edge_events(
 	struct gpiod_line_bulk *bulk, const char *consumer,
-	void (*isr)(struct gpiod_line *, struct gpiod_line_event *))
+	void (*handler)(struct gpiod_line *, struct gpiod_line_event *))
 {
 	return gpiod_isr_request_bulk_events(
-		bulk, consumer, GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE, isr);
+		bulk, consumer, GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE, handler);
 }
 
 /**
@@ -351,10 +401,10 @@ struct gpiod_isr_bulk *gpiod_isr_request_bulk_falling_edge_events(
  */
 struct gpiod_isr *gpiod_isr_request_both_edges_events(
 	struct gpiod_line *line, const char *consumer,
-	void (*isr)(struct gpiod_line *, struct gpiod_line_event *))
+	void (*handler)(struct gpiod_line *, struct gpiod_line_event *))
 {
 	return gpiod_isr_request_events(
-		line, consumer, GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES, isr);
+		line, consumer, GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES, handler);
 }
 
 /**
@@ -366,10 +416,208 @@ struct gpiod_isr *gpiod_isr_request_both_edges_events(
  */
 struct gpiod_isr_bulk *gpiod_isr_request_bulk_both_edges_events(
 	struct gpiod_line_bulk *bulk, const char *consumer,
-	void (*isr)(struct gpiod_line *, struct gpiod_line_event *))
+	void (*handler)(struct gpiod_line *, struct gpiod_line_event *))
 {
 	return gpiod_isr_request_bulk_events(
-		bulk, consumer, GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES, isr);
+		bulk, consumer, GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES, handler);
+}
+
+/**
+ * @brief Change an existing GPIOD ISR, this can change the event or the handler.
+ * @param isr Pointer to an existing GPIOD_ISR.
+ * @param event_type Event type (type of request), or -1 to keep the same.
+ * @param handler Interrupt handling function, or NULL to keep the same.
+ * @return 0 on success, -1 on failure.
+ * 
+ * The parameter event_type can be:
+ * - GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE
+ * - GPIOD_LINE_REQUEST_EVENT_RISING_EDGE
+ * - GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES
+ */
+int gpiod_isr_change_event(struct gpiod_isr *isr, const int event_type,
+			   void (*handler)(struct gpiod_line *,
+					   struct gpiod_line_event *))
+{
+	if (!isr) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	/* Do nothing if there is nothing to change. */
+	if ((!handler && (event_type == -1 || isr->event_type == event_type)) ||
+	    (handler == isr->handler && isr->event_type == event_type))
+		return 0;
+
+	/* Terminate watcher */
+	if (pthread_cancel(isr->thread) != 0) {
+		return -1;
+	}
+	pthread_join(isr->thread, NULL);
+
+	/* Change event */
+	if (event_type != -1 && isr->event_type != event_type) {
+		gpiod_line_release(isr->line);
+		if (_gpiod_request_event(isr->line, gpiod_line_name(isr->line),
+					 event_type) < 0) {
+			return -1;
+		}
+		isr->event_type = event_type;
+	}
+
+	/* Change handler */
+	if (handler && isr->handler != handler) {
+		isr->handler = handler;
+	}
+
+	if (pthread_create(&isr->thread, NULL, _gpiod_event_watcher,
+			   (void *)isr) != 0) {
+		gpiod_line_release(isr->line);
+		return -1;
+	}
+
+	return 0;
+}
+
+/**
+ * @brief Change an existing gpiod isr to rising edge with a new handler (or not).
+ * @param isr pointer to an existing gpiod_isr.
+ * @param handler interrupt handling function, or null to keep the same.
+ * @return 0 on success, -1 on failure.
+ */
+int gpiod_isr_change_rising_edge_events(
+	struct gpiod_isr *isr,
+	void (*handler)(struct gpiod_line *, struct gpiod_line_event *))
+{
+	return gpiod_isr_change_event(isr, GPIOD_LINE_REQUEST_EVENT_RISING_EDGE,
+				      handler);
+}
+
+/**
+ * @brief Change an existing gpiod isr to falling edge with a new handler (or not).
+ * @param isr pointer to an existing gpiod_isr.
+ * @param handler interrupt handling function, or null to keep the same.
+ * @return 0 on success, -1 on failure.
+ */
+int gpiod_isr_change_falling_edge_events(
+	struct gpiod_isr *isr,
+	void (*handler)(struct gpiod_line *, struct gpiod_line_event *))
+{
+	return gpiod_isr_change_event(
+		isr, GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE, handler);
+}
+
+/**
+ * @brief Change an existing gpiod isr to both edges with a new handler (or not).
+ * @param isr pointer to an existing gpiod_isr.
+ * @param handler interrupt handling function, or null to keep the same.
+ * @return 0 on success, -1 on failure.
+ */
+int gpiod_isr_change_both_edges_events(
+	struct gpiod_isr *isr,
+	void (*handler)(struct gpiod_line *, struct gpiod_line_event *))
+{
+	return gpiod_isr_change_event(isr, GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES,
+				      handler);
+}
+
+/**
+ * @brief Change an existing bulk GPIOD ISR, this can change the event or the handler.
+ * @param isr Pointer to an existing gpiod_isr_bulk object.
+ * @param event_type Event type (type of request), or -1 to keep the same.
+ * @param handler Interrupt handling function, or NULL to keep the same.
+ * @return 0 on success, -1 on failure.
+ * 
+ * The parameter event_type can be:
+ * - GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE
+ * - GPIOD_LINE_REQUEST_EVENT_RISING_EDGE
+ * - GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES
+ */
+int gpiod_isr_change_bulk_event(struct gpiod_isr_bulk *isr,
+				const int event_type,
+				void (*handler)(struct gpiod_line *,
+						struct gpiod_line_event *))
+{
+	if (!isr) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	/* Do nothing if there is nothing to change. */
+	if ((!handler && (event_type == -1 || isr->event_type == event_type)) ||
+	    (handler == isr->handler && isr->event_type == event_type))
+		return 0;
+
+	/* Terminate watcher */
+	if (pthread_cancel(isr->thread) != 0) {
+		return -1;
+	}
+	pthread_join(isr->thread, NULL);
+
+	/* Change event */
+	if (event_type != -1 && isr->event_type != event_type) {
+		gpiod_line_release_bulk(isr->lines);
+		if (_gpiod_request_bulk_event(
+			    isr->lines, gpiod_line_name(isr->lines->lines[0]),
+			    event_type) < 0) {
+			return -1;
+		}
+		isr->event_type = event_type;
+	}
+
+	/* Change handler */
+	if (handler && isr->handler != handler) {
+		isr->handler = handler;
+	}
+
+	if (pthread_create(&isr->thread, NULL, _gpiod_event_watcher_bulk,
+			   (void *)isr) != 0) {
+		gpiod_line_release_bulk(isr->lines);
+		return -1;
+	}
+
+	return 0;
+}
+
+/**
+ * @brief Change an existing bulk gpiod isr to rising edge with a new handler (or not).
+ * @param isr pointer to an existing gpiod_isr_bulk.
+ * @param handler interrupt handling function, or null to keep the same.
+ * @return 0 on success, -1 on failure.
+ */
+int gpiod_isr_change_bulk_rising_edge_events(
+	struct gpiod_isr_bulk *isr,
+	void (*handler)(struct gpiod_line *, struct gpiod_line_event *))
+{
+	return gpiod_isr_change_bulk_event(
+		isr, GPIOD_LINE_REQUEST_EVENT_RISING_EDGE, handler);
+}
+
+/**
+ * @brief Change an existing bulk gpiod isr to falling edge with a new handler (or not).
+ * @param isr pointer to an existing gpiod_isr_bulk.
+ * @param handler interrupt handling function, or null to keep the same.
+ * @return 0 on success, -1 on failure.
+ */
+int gpiod_isr_change_bulk_falling_edge_events(
+	struct gpiod_isr_bulk *isr,
+	void (*handler)(struct gpiod_line *, struct gpiod_line_event *))
+{
+	return gpiod_isr_change_bulk_event(
+		isr, GPIOD_LINE_REQUEST_EVENT_FALLING_EDGE, handler);
+}
+
+/**
+ * @brief Change an existing bulk gpiod isr to both edges with a new handler (or not).
+ * @param isr pointer to an existing gpiod_isr_bulk.
+ * @param handler interrupt handling function, or null to keep the same.
+ * @return 0 on success, -1 on failure.
+ */
+int gpiod_isr_change_bulk_both_edges_events(
+	struct gpiod_isr_bulk *isr,
+	void (*handler)(struct gpiod_line *, struct gpiod_line_event *))
+{
+	return gpiod_isr_change_bulk_event(
+		isr, GPIOD_LINE_REQUEST_EVENT_BOTH_EDGES, handler);
 }
 
 #ifdef __cplusplus
