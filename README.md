@@ -42,7 +42,7 @@ See the *utils* folder for more examples and helpful utilities.
 
 #### GPIO Interrupt
 
-Small wrapper for the libgpiod library using pthread to provide GPIO interrupts (gpiod-isr.h)
+Small wrapper for the libgpiod library using pthread to provide GPIO interrupts (gpiod-isr.h), see libgpiod.md in `utils/rpi` for help on how to use it.
 
 ### Arduino Due
 
