@@ -32,8 +32,60 @@
  * 
  * @warning This wrapper uses pthread, do not forget to add `-pthread` when compiling!
  * @warning If your handler function is too slow some events can be discarded if they are happening during your function! 
+ *
+ * ## Usage 
  * 
+ * This wrapper was designed to feel similar in use to the actual library, instead of using `gpiod_line_request_event` you use `gpiod_isr_request_event`.
+ * And when releasing you use `gpiod_isr_release` instead.
+ *
+ * In the following example we are going to listen for falling edge events on GPIO pin 12 until the user input a character which will stop the program.
+ *
+ * First thing to do is to prepare a function that will be our "handler", meaning it will be called when an event occurs.
+ * The function needs to follow the following signature: `void handler(struct gpiod_line *, struct gpiod_line_event *)`.
+ *
+ * ```c
+ * // Interrupt handler called when an interrupt on a GPIO pin happened.
+ * // This prints the type of event, the line on which it happened and when it happened.
+ * // The parameter line contains the GPIO line on which the event occured,
+ * // the parameter event contains the time and type of event.
+ * void gpio_handler(struct gpiod_line *line, struct gpiod_line_event *event)
+ * {
+ * 	printf("GPIO event (%d) on pin %s happened %lld.%.9ld seconds after boot!\n",
+ * 	       event->event_type, gpiod_line_name(line),
+ * 	       (long long)event->ts.tv_sec, event->ts.tv_nsec);
+ * }
+ * ```
  * 
+ * We can then register the interrupt. 
+ * 
+ * ```c
+ * // Open gpiochip0 
+ * struct gpiod_chip *chip = gpiod_chip_open("/dev/gpiochip0");
+ * 
+ * // We will use the GPIO pin 12 
+ * const unsigned int gpio_pin = 12;
+ * 
+ * // Retrieve the GPIO line we want 
+ * struct gpiod_line *line = gpiod_chip_get_line(chip, gpio_pin);
+ * 
+ * // Reserve the line for falling edge detection, also tells which
+ * // function will act as the interrupt handler.
+ * // In this case gpio_handler is our interrupt handler.
+ * // It is important to check for the value of isr, if it is NULL an error occured.
+ * struct gpiod_isr *isr = gpiod_isr_request_falling_edge_events(line, "gpiod_interrupts", gpio_handler);
+ * ```
+ * 
+ * When you need to close or remove the interrupt you need to use `gpiod_isr_release` instead of `gpiod_line_release`, this function will also call `gpiod_line_release`.
+ * 	
+ * ```c
+ * // Remove interrupt and release the line 
+ * gpiod_isr_release(isr);
+ * // Close the GPIO chip and free resources 
+ * gpiod_isr_close(chip);
+ * ```
+ * 
+ * This wrapper also provides a way to change the event type or the interrupt handler with functions beginning with `gpiod_isr_change`.
+ * There is also support for `bulk` lines object.
  */
 
 #ifndef GPIO_ISR_H
