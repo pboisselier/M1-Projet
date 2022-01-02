@@ -79,9 +79,8 @@ struct gpiod_isr_bulk {
 /**
  * @brief Pthread routine that will watch events on a given line and call the interrupt handler.
  * @param _isr Pointer to a gpiod_isr structure.
- * @return TODO
- * 
- * @todo Find a way to propagate errors and handle them
+ * @return Nothing.
+ * @warning This thread will override any error happend while waiting for events.
  */
 static void *_gpiod_event_watcher(void *_isr)
 {
@@ -97,15 +96,12 @@ static void *_gpiod_event_watcher(void *_isr)
 	struct gpiod_line_event event;
 
 	for (;;) {
-		if (gpiod_line_event_wait(isr->line, NULL) < 0) {
-			///@todo Propagate error
-			return NULL;
-		}
+		/* Wait for an event to happen */
+		/* NOTE: This overrides error! */
+		while (gpiod_line_event_wait(isr->line, NULL) != 1)
+			;
 
-		if (gpiod_line_event_read(isr->line, &event) < 0) {
-			///@todo Propagate error
-			return NULL;
-		} else {
+		if (gpiod_line_event_read(isr->line, &event) == 0) {
 			/* Call provided handler */
 			/* WARNING: While in the handler the thread is not watching for other interrupts */
 			isr->handler(isr->line, &event);
@@ -118,14 +114,18 @@ static void *_gpiod_event_watcher(void *_isr)
 /**
  * @brief Pthread routing that will watch events on a set of line.
  * @param _isr Pointer to a gpiod_isr_bulk structure.
- * @return  TODO
- * 
- * @todo Find a way to propagate errors and handle them
+ * @return  Nothing.
+ * @warning This thread will override any error happend while waiting for events.
  */
 static void *_gpiod_event_watcher_bulk(void *_isr)
 {
 	const struct gpiod_isr_bulk *isr = (struct gpiod_isr_bulk *)_isr;
 
+	/* Allow pthread_cancel to stop this thread at any time
+         * This should be safe and pretty clean as we do not have anything to clean
+         * in this this thread.
+         * Unless gpiod_line_event_wait or read are not clean...
+         */
 	(void)pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 
 	struct gpiod_line_bulk event_bulk;
@@ -133,7 +133,9 @@ static void *_gpiod_event_watcher_bulk(void *_isr)
 
 	for (;;) {
 		/* Wait for events on all lines */
-		gpiod_line_event_wait_bulk(isr->lines, NULL, &event_bulk);
+		while (gpiod_line_event_wait_bulk(isr->lines, NULL,
+						  &event_bulk) != 1)
+			;
 		/* Call handler for every event on each line */
 		for (unsigned int i = 0; i < event_bulk.num_lines; ++i) {
 			if (gpiod_line_event_read(event_bulk.lines[i],
@@ -173,7 +175,7 @@ static int _gpiod_request_event(struct gpiod_line *line, const char *consumer,
 
 /**
  * @brief Request the correct event for a set of lines.
- * @param line GPIO bulk object.
+ * @param line GPIO bulk line object.
  * @param consumer Name of the consumer.
  * @param event_type Event request type.
  * @return 0 on success, -1 on failure 
