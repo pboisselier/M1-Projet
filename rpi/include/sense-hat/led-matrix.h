@@ -38,26 +38,20 @@ extern "C" {
 #define LEDMATRIX_HEIGHT 8
 /** @brief Led Matrix led width */
 #define LEDMATRIX_WIDTH 8
-
 /** @brief Led Matrix byte size 
- * 8x8 LEDs * 16-bit color = 128 bytes 
  */
-#define LEDMATRIX_SZ LEDMATRIX_WIDTH *LEDMATRIX_HEIGHT
-
-//static const size_t matrix_size = 128;
-//static const size_t matrix_width = 8;
-//static const size_t matrix_height = 8;
+#define LEDMATRIX_SZ (LEDMATRIX_WIDTH * LEDMATRIX_HEIGHT * sizeof(pixel_t))
 
 /**
- * @brief Matrix Pixel format, RGB565.
+ * @brief Matrix Pixel format, BGR565.
  * Packing for serialization.
  */
 #pragma pack(push, 1)
 typedef union {
 	struct {
-		uint8_t r : 5;
-		uint8_t g : 6;
 		uint8_t b : 5;
+		uint8_t g : 6;
+		uint8_t r : 5;
 	} rgb;
 	uint16_t raw;
 } pixel_t;
@@ -87,36 +81,13 @@ struct led_matrix {
 	///< Optional flags.
 };
 
-//struct led_matrix *led_matrix_open(const char *fb_dev);
-//int led_matrix_close(struct matrix *matrix);
-//int led_matrix_get_raw(
-//	struct led_matrix *matrix,
-//	struct pixel pixel_array[LEDMATRIX_HEIGHT][LEDMATRIX_WIDTH]);
-////int led_matrix_fill_raw(struct led_matrix *matrix, struct pixel *color);
-//int led_matrix_fill(
-//	struct led_matrix *matrix,
-//	color_t color); // https://en.wikipedia.org/wiki/Chroma_subsampling
-//int led_matrix_rotate(struct led_matrix *matrix, const int angle);
-//int led_matrix_flip_vertical(struct led_matrix *matrix);
-//int led_matrix_flip_horizontal(struct led_matrix *matrix);
-//int led_matrix_display_raw(struct led_matrix *matrix,
-//			   struct pixel *pixel_array);
-//int led_matrix_display_rgb(struct led_matrix *matrix, color_t *rgb_array);
-//int led_matrix_display_bitmap(struct led_matrix *matrix, const char *bmp);
-//int led_matrix_display_char(struct led_matrix *matrix, char character,
-//			    color_t color); // Shall display a character
-//int led_matrix_display_text(
-//	struct led_matrix *matrix,
-//	const char *text); // Shall display a text in a scrolling manner?
-
-//int led_matrix_set(struct matrix *matrix, int x, int y, pixel_t pixel);
-//const pixel_t led_matrix_get(struct matrix *matrix, int x, int y);
-
+/** @brief Look-up table for fast conversion. */
 static const uint8_t rgb5_rgb8[32] = { 0,   8,	 16,  24,  32,	41,  49,  57,
 				       65,  74,	 82,  90,  98,	106, 115, 123,
 				       131, 139, 148, 156, 164, 172, 180, 189,
 				       197, 205, 213, 222, 230, 238, 246, 255 };
 
+/** @brief Look-up table for fast conversion. */
 static const uint8_t rgb6_rgb8[64] = {
 	0,   4,	  8,   12,  16,	 20,  24,  28,	32,  36,  40,  44,  48,
 	52,  56,  60,  64,  68,	 72,  76,  80,	85,  89,  93,  97,  101,
@@ -125,8 +96,10 @@ static const uint8_t rgb6_rgb8[64] = {
 	210, 214, 218, 222, 226, 230, 234, 238, 242, 246, 250, 255
 };
 
+/** @brief Default error when returning a pixel_t. */
 static const pixel_t px_err = (pixel_t)((uint16_t)UINT16_MAX);
 
+/** @brief Convert (x,y) to map index.
 static inline size_t _get_index(unsigned x, unsigned y)
 {
 	return (x % LEDMATRIX_WIDTH) +
@@ -134,7 +107,7 @@ static inline size_t _get_index(unsigned x, unsigned y)
 }
 
 /**
- * @brief Convert from a color_t (RGB888) to pixel_t (RGB565).
+ * @brief Convert from a color_t (RGB888) to pixel_t (BGR565).
  * @param color Color to convert.
  * @return Conversion result. 
  */
@@ -148,7 +121,7 @@ pixel_t led_matrix_color_to_pixel(const color_t color)
 }
 
 /**
- * @brief Convert from a pixel_t (RGB565) to color_t (RGB888).
+ * @brief Convert from a pixel_t (BGR565) to color_t (RGB888).
  * @param pixel Pixel to convert.
  * @return Conversion result. 
  */
@@ -207,7 +180,7 @@ cleanup1:
  */
 int led_matrix_close(struct led_matrix *matrix)
 {
-	if (!matrix) {
+	if (!matrix || !matrix->map) {
 		errno = EINVAL;
 		return -1;
 	}
@@ -245,13 +218,13 @@ int led_matrix_raw_fill(struct led_matrix *matrix, const pixel_t color_raw)
  * @param matrix Pointer to a led_matrix object.
  * @param x X coordinate (will wrap if over the width).
  * @param y Y coordinate (will wrap if over the height).
- * @param pixel New value for the pixel in RGB565 format.
+ * @param pixel New value for the pixel in BGR565 format.
  * @return 0 on success, -1 on failure. 
  */
 int led_matrix_raw_set(struct led_matrix *matrix, unsigned x, unsigned y,
 		       const pixel_t pixel)
 {
-	if (!matrix) {
+	if (!matrix || !matrix->map) {
 		errno = EINVAL;
 		return -1;
 	}
@@ -265,12 +238,12 @@ int led_matrix_raw_set(struct led_matrix *matrix, unsigned x, unsigned y,
  * @param matrix Pointer to a led_matrix object.
  * @param x X coordinate (will wrap if over the width).
  * @param y Y coordinate (will wrap if over the height).
- * @return The value of the pixel in the RGB565 format or UINT16_MAX.
+ * @return The value of the pixel in the BGR565 format or UINT16_MAX.
  */
 const pixel_t led_matrix_raw_get(struct led_matrix *matrix, unsigned x,
 				 unsigned y)
 {
-	if (!matrix) {
+	if (!matrix || !matrix->map) {
 		errno = EINVAL;
 		return px_err;
 	}
@@ -289,7 +262,7 @@ const pixel_t led_matrix_raw_get(struct led_matrix *matrix, unsigned x,
 int led_matrix_set(struct led_matrix *matrix, unsigned x, unsigned y,
 		   const color_t color)
 {
-	if (!matrix) {
+	if (!matrix || !matrix->map) {
 		errno = EINVAL;
 		return -1;
 	}
@@ -321,6 +294,86 @@ const color_t led_matrix_get(struct led_matrix *matrix, unsigned x, unsigned y)
 int led_matrix_fill(struct led_matrix *matrix, const color_t color)
 {
 	return led_matrix_raw_fill(matrix, led_matrix_color_to_pixel(color));
+}
+
+/**
+ * @brief Get a copy of the matrix content in BGR565 format.
+ * @param matrix Pointer to a led_matrix object.
+ * @return Array of LEDMATRIX_HEIGH * LEDMATRIX_WIDTH with the matrix content, NULL on failure.
+ */
+pixel_t *led_matrix_raw_screenshot(struct led_matrix *matrix)
+{
+	if (!matrix || !matrix->map) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	pixel_t *array = malloc(LEDMATRIX_SZ);
+	if (!array)
+		return NULL;
+
+	memcpy(array, matrix->map, LEDMATRIX_SZ);
+	return array;
+}
+
+/**
+ * @brief Display an array in BGR565 format on the matrix.
+ * @param matrix Pointer to a led_matrix object.
+ * @param px_array Array of pixel to display on the matrix.
+ * @return 0 on success, -1 on failure. 
+ */
+int led_matrix_raw_display(struct led_matrix *matrix, const pixel_t *px_array)
+{
+	if (!matrix || !matrix->map || !px_array) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	memcpy(matrix->map, px_array, LEDMATRIX_SZ);
+	return 0;
+}
+
+/**
+ * @brief Get a copy of the matrix content in RGB888 format.
+ * @param matrix Pointer to a led_matrix object.
+ * @return Array of LEDMATRIX_HEIGH * LEDMATRIX_WIDTH with the matrix content, NULL on failure.
+ * @todo Should freeze the display if there's an animation?
+ */
+color_t *led_matrix_screenshot(struct led_matrix *matrix)
+{
+	if (!matrix || !matrix->map) {
+		errno = EINVAL;
+		return NULL;
+	}
+	color_t *array =
+		malloc(sizeof(*array) * LEDMATRIX_HEIGHT * LEDMATRIX_WIDTH);
+	if (!array)
+		return NULL;
+
+	for (size_t i = 0; i < LEDMATRIX_WIDTH * LEDMATRIX_HEIGHT; ++i) {
+		array[i] = led_matrix_pixel_to_color(matrix->map[i]);
+	}
+
+	return array;
+}
+
+/**
+ * @brief Display an array in RGB888 format on the matrix.
+ * @param matrix Pointer to a led_matrix object.
+ * @param px_array Array of pixel to display on the matrix.
+ * @return 0 on success, -1 on failure. 
+ */
+int led_matrix_display(struct led_matrix *matrix, const color_t *px_array)
+{
+	if (!matrix || !matrix->map) {
+		errno = EINVAL;
+		return -1;
+	}
+	for (size_t i = 0; i < LEDMATRIX_WIDTH * LEDMATRIX_HEIGHT; ++i) {
+		matrix->map[i] = led_matrix_color_to_pixel(px_array[i]);
+	}
+
+	return 0;
 }
 
 #ifdef __cplusplus
