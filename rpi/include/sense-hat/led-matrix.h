@@ -99,7 +99,7 @@ static const uint8_t rgb6_rgb8[64] = {
 /** @brief Default error when returning a pixel_t. */
 static const pixel_t px_err = (pixel_t)((uint16_t)UINT16_MAX);
 
-/** @brief Convert (x,y) to map index.
+/** @brief Convert (x,y) to map index. */
 static inline size_t _get_index(unsigned x, unsigned y)
 {
 	return (x % LEDMATRIX_WIDTH) +
@@ -375,6 +375,30 @@ int led_matrix_display(struct led_matrix *matrix, const color_t *px_array)
 
 	return 0;
 }
+
+/**
+ * @brief Rotate the content on the display.
+ * @param matrix Pointer to a led_matrix object.
+ * @param angle Angle in degrees.
+ * @return 0 on sucess, -1 on failure. 
+ * @todo Implement it.
+ */
+int led_matrix_rotate(struct led_matrix *matrix, int angle)
+{
+	if (!matrix || !matrix->map) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	angle = angle % 360;
+
+	if (angle % 90 == 0) {
+	}
+
+	return 0;
+}
+
+//int led_matrix_move(struct led_matrix *matrix, int delta_x, int delta_y, color_t *filler);
 
 #ifdef __cplusplus
 }
