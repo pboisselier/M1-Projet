@@ -1,35 +1,13 @@
 # M1-Projet
 
-Projet M1 2021-2022
-
-## Goal
-
-The goal is to build an aggregate of small libraries to quickly use when working on different embedded cards.  
+This project is an aggregate of small libraries to quickly use when working on different embedded cards.  
 These libraries need to be easy to use but flexible enough to be able to do advanced stuff with them.  
- 
-## Usage
 
-Add to your include path the `include` folder of the card you are working on, for instance `rpi/include`.  
+You may want to take a look at the [Wiki](https://github.com/Raclette2K/M1-Projet/wiki) for guides on how to use these libraries.
 
-```c
-#include <sense-hat/joystick.h>
+## Supported Cards
 
-int main(void) {
-
-        /** Use any function you need from the library **/
-        return 0;
-}
-```
-
-```sh
-cc main.c -I./rpi/include -std=c11 -o test
-``` 
-
-See the *utils* folder for more examples and helpful utilities.
-
-## Cards
-
-### Rasbperry Pi 
+### Rasbperry Pi
 
 #### Sense-Hat by element14
 
