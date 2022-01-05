@@ -61,9 +61,9 @@
 /** @brief Default I2C address for the PCF8563 */
 #define PCF8563_I2C_ADDR 0x51
 #endif
-#ifndef RPI_I2C_BUS
-/** @brief Default I2C bus of the Raspberry Pi */
-#define RPI_I2C_BUS 0x703
+#ifndef RPI_I2C_DEVICE
+/** @brief Default I2C device for the Raspberry Pi */
+#define RPI_I2C_DEVICE "/dev/i2c-1"
 #endif
 
 /**
@@ -118,8 +118,8 @@
 #include <time.h>
 #include <errno.h>
 #include <stdint.h>
-#include <assert.h>
 #include <string.h>
+#include <linux/i2c-dev.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -173,10 +173,10 @@ void pcf8563_print_err(const int error, const char *msg)
  * @brief Open connection to the PFC8563 RTC and return a file descriptor 
  * 
  * @param i2c_device I2C device path (/dev/i2c-1 for instance)
- * @param bus_addr I2C bus address (0x703 for Rapsberry Pi 4 for instance)
+ * @param slave_addr Sensor I2C address
  * @return a file descriptor to the PCF8563 RTC (or error if negative)
  */
-int pcf8563_init_c_ui16(const char *i2c_device, uint16_t bus_addr)
+int pcf8563_init_c_ui16(const char *i2c_device, const long slave_addr)
 {
 	if (!i2c_device)
 		return PCF8563_ERR_ARG;
@@ -185,7 +185,7 @@ int pcf8563_init_c_ui16(const char *i2c_device, uint16_t bus_addr)
 	if (fd < 0)
 		return PCF8563_ERR_NOPEN;
 
-	if (ioctl(fd, bus_addr, PCF8563_I2C_ADDR) < 0) {
+	if (ioctl(fd, I2C_SLAVE, PCF8563_I2C_ADDR) < 0) {
 		(void)close(fd);
 		return PCF8563_ERR_NOPEN;
 	}
@@ -201,7 +201,7 @@ int pcf8563_init_c_ui16(const char *i2c_device, uint16_t bus_addr)
  */
 int pcf8563_init_c(const char *i2c_device)
 {
-	return pcf8563_init_c_ui16(i2c_device, RPI_I2C_BUS);
+	return pcf8563_init_c_ui16(i2c_device, PCF8563_I2C_ADDR);
 }
 
 /**
@@ -211,7 +211,7 @@ int pcf8563_init_c(const char *i2c_device)
  */
 int pcf8563_init(void)
 {
-	return pcf8563_init_c_ui16("/dev/i2c-1", RPI_I2C_BUS);
+	return pcf8563_init_c_ui16(RPI_I2C_DEVICE, PCF8563_I2C_ADDR);
 }
 
 /**
