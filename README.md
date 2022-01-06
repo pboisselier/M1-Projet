@@ -7,13 +7,14 @@ You may want to take a look at the [Wiki](https://github.com/Raclette2K/M1-Proje
 
 ## Supported Cards
 
-### Rasbperry Pi
+## Rasbperry Pi (or any Linux based embedded card)
 
-#### Sense-Hat by element14
+#### Sense-Hat by element14 (from the AstroPi mission)
 
-- *Add what has been done*
+- Led Matrix (not fully featured)
+- Pressure sensor (lps25h.h)
 
-#### ARPI600 by xBee
+#### ARPI600 by Waveshare 
 
 - PCF8563 Real-Time clock (pcf8563.h)
 - TLC1543 10-Bit ADC (tlc1543.h)
