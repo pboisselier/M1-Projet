@@ -7,7 +7,7 @@ You may want to take a look at the [Wiki](https://github.com/Raclette2K/M1-Proje
 
 ## Supported Cards
 
-## Rasbperry Pi (or any Linux based embedded card)
+### Rasbperry Pi (or any Linux based embedded card)
 
 #### Sense-Hat by element14 (from the AstroPi mission)
 
