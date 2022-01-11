@@ -110,7 +110,7 @@ Using a logic analyzer we can observe the resulting square waveform.
 For using a line as an input it is the same thing, open the chip, retrieve a line, reserve the line and set the direction.
 You can use `gpiod_line_get_value` this time to read the value of the pin (HIGH or LOW).
 
-As a side note, it is also possible skip the `gpiod_chip_get_line` function altogether by using the function `gpiod_line_get(const char *device, unsgined int offset)`.
+As a side note, it is also possible to skip the `gpiod_chip_get_line` function altogether by using the function `gpiod_line_get(const char *device, unsgined int offset)`.
 
 | Warning                                                                                  |
 | :--------------------------------------------------------------------------------------- |
@@ -138,7 +138,7 @@ In the following example we are going to watch the GPIO pin 12 for a falling edg
 
 | Note                                                                                        |
 | :------------------------------------------------------------------------------------------ |
-| The code below is not complete and needs to be completed, do not forge to check for errors! |
+| The code below is not complete and needs to be completed, do not forget to check for errors! |
 
 We first open the GPIO chip on which we will get the line we want.
 
