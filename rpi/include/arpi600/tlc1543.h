@@ -198,13 +198,13 @@ int tlc1543_init_c_i_i_i(struct tlc1543 *tlc, const char *gpio_dev,
 	if (!tlc->chip)
 		return TLC1543_ERR_OPEN_CHIP;
 
-	tlc->addr = gpiod_chip_get_line(tlc->chip, TLC1543_PIN_ADDR);
+	tlc->addr = gpiod_chip_get_line(tlc->chip, gpio_addr);
 	if (!tlc->addr)
 		return TLC1543_ERR_OPEN_LINE;
-	tlc->data = gpiod_chip_get_line(tlc->chip, TLC1543_PIN_DATA);
+	tlc->data = gpiod_chip_get_line(tlc->chip, gpio_data);
 	if (!tlc->data)
 		return TLC1543_ERR_OPEN_LINE;
-	tlc->ioclk = gpiod_chip_get_line(tlc->chip, TLC1543_PIN_IOCLK);
+	tlc->ioclk = gpiod_chip_get_line(tlc->chip, gpio_ioclk);
 	if (!tlc->ioclk)
 		return TLC1543_ERR_OPEN_LINE;
 
