@@ -32,6 +32,10 @@
  * You can also start the example with a custom threshold, like so: 
  * `./thread_adc_watch.out 100`
  * DO NOT QUIT WITH SIGINT (Ctrl+C), this may cause the ADC to bug and you will not be able to read correct values from it until you restart the Raspberry Pi.
+ * 
+ * ### Troubleshooting
+ * 
+ * If the LEDs do not blink, this is probably because you enabled the SPI interface on the RaspberryPi, this interferes with the GPIO pins the LEDs are connected to.
  */
 
 #include <arpi600/tlc1543.h>
