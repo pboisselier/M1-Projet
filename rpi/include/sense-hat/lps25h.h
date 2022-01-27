@@ -58,7 +58,9 @@
 #define LPS25H_REG_PRESS_OUTL 0x29
 /** @brief Pressure value, last 8bits */
 #define LPS25H_REG_PRESS_OUTH 0x2A
+/** @brief Temperature value, first 8 bits */
 #define LPS25H_REG_TEMP_OUTL 0x2B
+/** @brief Temperature value, last 8 bits */
 #define LPS25H_REG_TEMP_OUTH 0x2C
 #define LPS25H_REG_FIFO_CTRL 0x2E
 #define LPS25H_REG_FIFO_STATUS 0x2F
